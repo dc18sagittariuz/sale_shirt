@@ -410,33 +410,13 @@
 function parseThaiDate(str) {
   if (!str) return null;
   try {
+    // format จริงคือ M/D/YY เช่น 5/9/26
     const clean = str.split(',')[0].trim();
-
-    // ลอง d/m/yyyy ก่อน (format ไทย)
-    const thMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (thMatch) {
-      return new Date(
-        parseInt(thMatch[3]),
-        parseInt(thMatch[2]) - 1,
-        parseInt(thMatch[1])
-      );
-    }
-
-    // ลอง ISO format (yyyy-mm-dd)
-    const isoMatch = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (isoMatch) {
-      return new Date(
-        parseInt(isoMatch[1]),
-        parseInt(isoMatch[2]) - 1,
-        parseInt(isoMatch[3])
-      );
-    }
-
-    // fallback ให้ JS parse เอง
-    const d = new Date(str);
+    const d = new Date(clean);
     return isNaN(d.getTime()) ? null : d;
-
-  } catch(e) { return null; }
+  } catch(e) {
+    return null;
+  }
 }
 
 function renderTable(rows) {
