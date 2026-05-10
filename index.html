@@ -407,14 +407,36 @@
     renderTable(val ? allRows.filter(r=>(r[9]||'').includes(val)) : allRows);
   }
 
-  function parseThaiDate(str) {
+function parseThaiDate(str) {
   if (!str) return null;
-  const parts = str.split(',')[0].trim().split('/');
-  if (parts.length !== 3) return null;
-  const day   = parseInt(parts[0]);
-  const month = parseInt(parts[1]) - 1;
-  const year  = parseInt(parts[2]);
-  return new Date(year, month, day);
+  try {
+    const clean = str.split(',')[0].trim();
+
+    // ลอง d/m/yyyy ก่อน (format ไทย)
+    const thMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (thMatch) {
+      return new Date(
+        parseInt(thMatch[3]),
+        parseInt(thMatch[2]) - 1,
+        parseInt(thMatch[1])
+      );
+    }
+
+    // ลอง ISO format (yyyy-mm-dd)
+    const isoMatch = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      return new Date(
+        parseInt(isoMatch[1]),
+        parseInt(isoMatch[2]) - 1,
+        parseInt(isoMatch[3])
+      );
+    }
+
+    // fallback ให้ JS parse เอง
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+
+  } catch(e) { return null; }
 }
 
 function renderTable(rows) {
