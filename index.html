@@ -407,13 +407,28 @@
     renderTable(val ? allRows.filter(r=>(r[9]||'').includes(val)) : allRows);
   }
 
+  function parseThaiDate(str) {
+  if (!str) return null;
+  const parts = str.split(',')[0].trim().split('/');
+  if (parts.length !== 3) return null;
+  const day   = parseInt(parts[0]);
+  const month = parseInt(parts[1]) - 1;
+  const year  = parseInt(parts[2]);
+  return new Date(year, month, day);
+}
+
+function renderTable(rows) {
+
   function renderTable(rows) {
     document.getElementById('orders-tbody').innerHTML = [...rows].reverse().slice(0,30).map(r => {
       const status    = (r[13]||'').trim();
       const badgeClass= status.includes('ตรง') ? 'badge-ok' : status ? 'badge-warn' : '';
       const badgeText = status.includes('ตรง') ? 'Verified' : status ? 'Pending' : '—';
       let date = '—';
-      try { date = new Date(r[0]).toLocaleDateString('th-TH',{day:'numeric',month:'short'}); } catch(e){}
+      try {
+        const d = parseThaiDate(r[0]);
+        if (d) date = d.toLocaleDateString('th-TH', { day:'numeric', month:'short' });
+      } catch(e){}
       return `<tr>
         <td style="color:var(--text3);white-space:nowrap">${date}</td>
         <td style="font-weight:500;white-space:nowrap">${r[1]||'—'}</td>
