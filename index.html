@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f8f6; color: #1a1a18; padding: 1.5rem; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a18; color: #e8e6de; }
+      .card { background: #2a2a28 !important; border-color: rgba(255,255,255,0.1) !important; }
+      .metric { background: #222220 !important; }
+      select { background: #2a2a28; color: #e8e6de; border-color: rgba(255,255,255,0.2); }
+    }
+    .metric { background: #f1efe8; border-radius: 8px; padding: 1rem; }
+    .metric-label { font-size: 13px; color: #73726c; margin-bottom: 4px; }
+    .metric-value { font-size: 24px; font-weight: 500; }
+    .metric-sub { font-size: 12px; color: #888780; margin-top: 2px; }
+    .card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1rem 1.25rem; }
+    .section-title { font-size: 11px; font-weight: 500; color: #888780; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+    .badge-ok { background: #EAF3DE; color: #27500A; }
+    .badge-warn { background: #FAEEDA; color: #633806; }
+    .size-bar-bg { background: rgba(0,0,0,0.08); border-radius: 4px; height: 6px; flex: 1; }
+    .size-bar-fill { height: 6px; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { font-size: 11px; font-weight: 500; color: #888780; text-align: left; padding: 4px 8px; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+    td { padding: 7px 8px; border-bottom: 0.5px solid rgba(0,0,0,0.06); }
+    tr:last-child td { border-bottom: none; }
+    .refresh-btn { font-size: 12px; cursor: pointer; background: none; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 5px 12px; }
+    .refresh-btn:hover { background: rgba(0,0,0,0.04); }
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(0,0,0,0.1); border-top-color: #185FA5; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: -2px; margin-right: 4px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    select { font-size: 12px; padding: 4px 8px; border-radius: 8px; border: 0.5px solid rgba(0,0,0,0.2); }
+  </style>
+</head>
+<body>
+
+<div style="max-width: 960px; margin: 0 auto;">
+
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem;">
+    <div>
+      <div style="font-size:20px; font-weight:500;">Sales Dashboard</div>
+      <div style="font-size:12px; color:#888780; margin-top:2px;" id="last-updated">Loading...</div>
+    </div>
+    <button class="refresh-btn" onclick="loadData()" id="refresh-btn">
+      <i class="ti ti-refresh"></i> Refresh
+    </button>
+  </div>
+
+  <div id="error-msg" style="display:none; background:#FCEBEB; color:#791F1F; border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:1rem;"></div>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:1.25rem;">
+    <div class="metric"><div class="metric-label"><i class="ti ti-receipt"></i> Total orders</div><div class="metric-value" id="m-orders">—</div><div class="metric-sub" id="m-orders-sub"></div></div>
+    <div class="metric"><div class="metric-label"><i class="ti ti-stack"></i> Total shirts</div><div class="metric-value" id="m-shirts">—</div><div class="metric-sub" id="m-shirts-sub"></div></div>
+    <div class="metric"><div class="metric-label"><i class="ti ti-currency-baht"></i> Revenue</div><div class="metric-value" id="m-revenue">—</div><div class="metric-sub" id="m-revenue-sub"></div></div>
+    <div class="metric"><div class="metric-label"><i class="ti ti-circle-check"></i> Verified</div><div class="metric-value" id="m-verified">—</div><div class="metric-sub" id="m-verified-sub"></div></div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:1.25rem;">
+    <div class="card">
+      <div class="section-title">Size breakdown</div>
+      <div id="size-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Delivery method</div>
+      <div id="delivery-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <div style="margin-top:1rem; border-top:0.5px solid rgba(0,0,0,0.08); padding-top:1rem;">
+        <div class="section-title">Gender split</div>
+        <div id="gender-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <div class="section-title" style="margin-bottom:0;">Recent orders</div>
+      <select id="filter-delivery" onchange="applyFilter()">
+        <option value="">All delivery</option>
+        <option value="คุณภาพน้ำ">คุณภาพน้ำ</option>
+        <option value="สำนักงาน">สำนักงานใหญ่</option>
+        <option value="ไปรษณีย์">ไปรษณีย์</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Name</th><th>Gender</th><th>Size</th>
+          <th>Qty</th><th>Price</th><th>Delivery</th><th>Status</th>
+        </tr></thead>
+        <tbody id="orders-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div class="card">
+      <div class="section-title">Qty by size</div>
+      <div style="position:relative; height:220px;">
+        <canvas id="sizeChart" role="img" aria-label="Bar chart of shirt quantity by size"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Revenue by tier</div>
+      <div style="display:flex; gap:16px; margin-bottom:8px; font-size:12px; color:#888780;">
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#185FA5;display:inline-block;"></span>Normal (SS–2XL)</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#3B6D11;display:inline-block;"></span>Big (3XL–7XL)</span>
+      </div>
+      <div style="position:relative; height:192px;">
+        <canvas id="tierChart" role="img" aria-label="Donut chart revenue by size tier"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  const SHEET_ID  = '1c2J0WExPWB0mHY3HEU1kdt70b81tZ6BiGjsp8E05S4k';
+  const API_KEY   = '220579501429-vn5orcuj4r2of9n0kigirufaduoncfeo.apps.googleusercontent.com';
+  const SHEET_TAB = 'Sheet1';
+  const BIG_SIZES = ['3XL','4XL','5XL','6XL','7XL'];
+
+  let allRows = [];
+  let sizeChartInst, tierChartInst;
+
+  function fmt(n) { return Math.round(n).toLocaleString(); }
+
+  async function loadData() {
+    const btn = document.getElementById('refresh-btn');
+    btn.innerHTML = '<span class="spinner"></span>Loading';
+    btn.disabled = true;
+    document.getElementById('error-msg').style.display = 'none';
+    try {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_TAB}?key=${API_KEY}`;
+      const res  = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      allRows = (json.values || []).slice(1);
+      render(allRows);
+      document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    } catch(e) {
+      document.getElementById('error-msg').textContent = 'Cannot load: ' + e.message + ' — check SHEET_ID and API_KEY';
+      document.getElementById('error-msg').style.display = 'block';
+    }
+    btn.innerHTML = '<i class="ti ti-refresh"></i> Refresh';
+    btn.disabled = false;
+  }
+
+  function render(rows) {
+    let totalShirts=0, totalRevenue=0, verifiedCount=0, unverifiedCount=0;
+    const sizeMap={}, deliveryMap={}, genderMap={male:0,female:0};
+    const uniqueOrders = new Set();
+
+    rows.forEach(r => {
+      const qty=parseInt(r[6])||0, grand=parseFloat(r[11])||0;
+      const size=(r[5]||'').toUpperCase().trim();
+      const gender=(r[4]||'').trim(), delivery=(r[9]||'').trim(), status=(r[13]||'').trim();
+      totalShirts += qty;
+      if (grand>0) { totalRevenue+=grand; uniqueOrders.add((r[1]||'')+r[0]); }
+      if (status.includes('ตรง')) verifiedCount++;
+      else if (status) unverifiedCount++;
+      if (size) sizeMap[size]=(sizeMap[size]||0)+qty;
+      if (delivery) {
+        const k = delivery.includes('คุณภาพน้ำ')?'คุณภาพน้ำ':delivery.includes('สำนักงาน')?'สำนักงานใหญ่':delivery.includes('ไปรษณีย์')?'ไปรษณีย์':delivery;
+        deliveryMap[k]=(deliveryMap[k]||0)+qty;
+      }
+      if (gender==='ชาย') genderMap.male+=qty;
+      else if (gender==='หญิง') genderMap.female+=qty;
+    });
+
+    document.getElementById('m-orders').textContent = uniqueOrders.size;
+    document.getElementById('m-orders-sub').textContent = rows.length + ' line items';
+    document.getElementById('m-shirts').textContent = fmt(totalShirts);
+    document.getElementById('m-shirts-sub').textContent = 'across all sizes';
+    document.getElementById('m-revenue').textContent = '฿'+fmt(totalRevenue);
+    document.getElementById('m-revenue-sub').textContent = 'confirmed orders';
+    document.getElementById('m-verified').textContent = verifiedCount;
+    document.getElementById('m-verified-sub').textContent = unverifiedCount + ' pending';
+
+    const sizeOrder=['SS','S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL'];
+    const sizes = sizeOrder.filter(s=>sizeMap[s]);
+    const maxQ  = Math.max(...sizes.map(s=>sizeMap[s]),1);
+
+    document.getElementById('size-list').innerHTML = sizes.map(s => {
+      const q=sizeMap[s], pct=Math.round(q/totalShirts*100), isBig=BIG_SIZES.includes(s);
+      return `<div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;font-weight:500;width:32px;">${s}</span>
+        <div class="size-bar-bg"><div class="size-bar-fill" style="width:${Math.round(q/maxQ*100)}%;background:${isBig?'#3B6D11':'#185FA5'}"></div></div>
+        <span style="font-size:12px;color:#888780;min-width:56px;text-align:right;">${q} (${pct}%)</span>
+      </div>`;
+    }).join('');
+
+    const totD=Object.values(deliveryMap).reduce((a,b)=>a+b,0)||1;
+    document.getElementById('delivery-list').innerHTML = Object.entries(deliveryMap).map(([k,v])=>{
+      const pct=Math.round(v/totD*100);
+      return `<div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;width:90px;">${k}</span>
+        <div class="size-bar-bg"><div class="size-bar-fill" style="width:${pct}%;background:#534AB7"></div></div>
+        <span style="font-size:12px;color:#888780;min-width:52px;text-align:right;">${v} (${pct}%)</span>
+      </div>`;
+    }).join('');
+
+    const totG=(genderMap.male+genderMap.female)||1;
+    document.getElementById('gender-list').innerHTML = [['ชาย',genderMap.male,'#185FA5'],['หญิง',genderMap.female,'#993556']].map(([l,v,c])=>{
+      const pct=Math.round(v/totG*100);
+      return `<div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;width:40px;">${l}</span>
+        <div class="size-bar-bg"><div class="size-bar-fill" style="width:${pct}%;background:${c}"></div></div>
+        <span style="font-size:12px;color:#888780;min-width:52px;text-align:right;">${v} (${pct}%)</span>
+      </div>`;
+    }).join('');
+
+    renderTable(rows);
+    renderCharts(sizes, sizeMap, rows);
+  }
+
+  function applyFilter() {
+    const val = document.getElementById('filter-delivery').value;
+    renderTable(val ? allRows.filter(r=>(r[9]||'').includes(val)) : allRows);
+  }
+
+  function renderTable(rows) {
+    document.getElementById('orders-tbody').innerHTML = [...rows].reverse().slice(0,30).map(r=>{
+      const status=(r[13]||'').trim();
+      const badgeClass=status.includes('ตรง')?'badge-ok':status?'badge-warn':'';
+      const badgeText=status.includes('ตรง')?'Verified':status?'Pending':'—';
+      const date=r[0]?new Date(r[0]).toLocaleDateString('th-TH',{day:'numeric',month:'short'}):'—';
+      return `<tr>
+        <td style="color:#888780">${date}</td>
+        <td style="font-weight:500">${r[1]||'—'}</td>
+        <td>${r[4]||'—'}</td>
+        <td style="font-family:monospace">${r[5]||'—'}</td>
+        <td style="text-align:center">${r[6]||'—'}</td>
+        <td>฿${fmt(parseFloat(r[8])||0)}</td>
+        <td style="font-size:12px;color:#888780">${(r[9]||'').replace('รับที่','').replace('(+50 บาท)','').trim()}</td>
+        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:#888780;padding:1rem">No data</td></tr>';
+  }
+
+  function renderCharts(sizes, sizeMap, rows) {
+    if (sizeChartInst) sizeChartInst.destroy();
+    if (tierChartInst) tierChartInst.destroy();
+    const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+    const textColor = isDark?'#888780':'#73726c', gridColor = isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.05)';
+
+    sizeChartInst = new Chart(document.getElementById('sizeChart'),{
+      type:'bar',
+      data:{ labels:sizes, datasets:[{ data:sizes.map(s=>sizeMap[s]), backgroundColor:sizes.map(s=>BIG_SIZES.includes(s)?'#3B6D11':'#185FA5'), borderRadius:4 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}}, y:{ticks:{color:textColor,font:{size:11}},grid:{color:gridColor}} } }
+    });
+
+    let normalRev=0, bigRev=0;
+    rows.forEach(r=>{ const s=(r[5]||'').toUpperCase().trim(), t=parseFloat(r[8])||0; BIG_SIZES.includes(s)?bigRev+=t:normalRev+=t; });
+    const total=(normalRev+bigRev)||1;
+
+    tierChartInst = new Chart(document.getElementById('tierChart'),{
+      type:'doughnut',
+      data:{ labels:['Normal SS–2XL','Big 3XL–7XL'], datasets:[{ data:[normalRev,bigRev], backgroundColor:['#185FA5','#3B6D11'], borderWidth:0, hoverOffset:4 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>' ฿'+fmt(ctx.raw)+' ('+Math.round(ctx.raw/total*100)+'%)' } } } }
+    });
+  }
+
+  loadData();
+  setInterval(loadData, 60000);
+</script>
+</body>
+</html>
